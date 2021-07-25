@@ -74,8 +74,8 @@ public class GoBoardExampleGenerator {
 						BufferedImage currentStoneImage = (randomBoardRep.getBoard()[k][j] == 1) ? blackStoneImage
 								: whiteStoneImage;
 						g.drawImage(currentStoneImage,
-								boardData.getStartCoordinates().getY() + ((boardData.getDistanceUnitY() * k)),
-								boardData.getStartCoordinates().getX() + (boardData.getDistanceUnitX() * j), null);
+								boardData.getStartCoordinates().getX() + ((boardData.getDistanceUnitX() * j)),
+								boardData.getStartCoordinates().getY() + (boardData.getDistanceUnitY() * k), null);
 
 					}
 
