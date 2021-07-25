@@ -1,8 +1,10 @@
-package mainExampleGen;
+package utils;
+
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 public class ImageProcessingUtils {
 	public static BufferedImage resize(BufferedImage img, int newW, int newH) {
@@ -30,6 +32,12 @@ public class ImageProcessingUtils {
 		graphics2D.dispose();
 
 		return bi;
+	}
+
+	public static BufferedImage resizeImage(BufferedImage image, int width, int height) throws IOException {
+		Image resizeB = image.getScaledInstance(138, 138, Image.SCALE_SMOOTH);
+		image = ImageProcessingUtils.convertToBufferedImage(resizeB);
+		return image;
 	}
 
 }

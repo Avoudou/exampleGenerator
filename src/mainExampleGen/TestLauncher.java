@@ -8,6 +8,8 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
+import utils.ImageProcessingUtils;
+
 public class TestLauncher {
 	
 	public static void main(String[] args) throws IOException {

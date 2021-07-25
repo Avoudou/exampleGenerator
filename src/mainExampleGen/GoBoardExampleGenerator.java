@@ -6,19 +6,29 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.concurrent.ThreadLocalRandom;
 
 import javax.imageio.ImageIO;
 
+import definitions.BoardData;
+import definitions.BoardRepresentation;
+import definitions.Range;
+import utils.ImageProcessingUtils;
+import utils.RandomCollection;
+
 public class GoBoardExampleGenerator {
 
+	//private GoBoardExampleGeneratorData data = new GoBoardExampleGeneratorData();
+	
 	private BoardData boardData;
-
 	private String stonePath;
 	private String blackStoneImageName;
 	private String whiteStoneImageName;
 	private String savePath;
-
-	private double haveStoneProbability = 0.5;
+	
+	private final int trainingImageDimention = 80;
+	private final double haveStoneProbability = 0.5;
+	private final RandomCollection<Range> rangeCollection = createWeightedRanges();
 
 	public GoBoardExampleGenerator(BoardData boardData, String blackStoneImageName, String whiteStoneImageName,
 			String stonePath, String savePath) {
@@ -32,22 +42,19 @@ public class GoBoardExampleGenerator {
 
 	public void generateExamples(int numberOfExamples) throws IOException {
 
-		File stoneCoordinatesData = new File(savePath + "stoneCoordinates.txt");
-		FileWriter myWriter = new FileWriter(savePath + "stoneCoordinates.txt");
+		File stoneCoordinatesData = new File(savePath, "stoneCoordinates.txt");
+		FileWriter myWriter = new FileWriter(stoneCoordinatesData.getPath());
 
 		for (int i = 0; i < numberOfExamples; i++) {
 			System.out.println("example count " + i);
+
 			// load source image for board
 			BufferedImage boardImage = ImageIO.read(new File(boardData.getImagePath(), boardData.getImageName()));
-
-			BufferedImage blackStoneImage = ImageIO.read(new File(stonePath, blackStoneImageName));
-			BufferedImage whiteStoneImage = ImageIO.read(new File(stonePath, whiteStoneImageName));
-
-			Image resizeB = blackStoneImage.getScaledInstance(138, 138, Image.SCALE_SMOOTH);
-			blackStoneImage = ImageProcessingUtils.convertToBufferedImage(resizeB);
-
-			Image resizeW = whiteStoneImage.getScaledInstance(138, 138, Image.SCALE_SMOOTH);
-			whiteStoneImage = ImageProcessingUtils.convertToBufferedImage(resizeW);
+			int stoneImageDim = boardData.getMatchingStoneImageDimention();
+			BufferedImage blackStoneImage = ImageProcessingUtils
+					.resizeImage(ImageIO.read(new File(stonePath, blackStoneImageName)), stoneImageDim, stoneImageDim);
+			BufferedImage whiteStoneImage = ImageProcessingUtils
+					.resizeImage(ImageIO.read(new File(stonePath,whiteStoneImageName)), stoneImageDim, stoneImageDim);
 
 			// example image initialization
 			BufferedImage combined = new BufferedImage(boardImage.getWidth(), boardImage.getHeight(),
@@ -57,32 +64,34 @@ public class GoBoardExampleGenerator {
 
 			g.drawImage(boardImage, 0, 0, null);
 
-			BoardRepresentation randomBoardRep = generateRandomBoardRepresentation();
+			// BoardRepresentation randomBoardRep = generateRandomBoardRepresentation();
+			BoardRepresentation randomBoardRep = generateWeightedRandomBoardRepresentation();
+			saveExampleCoordinates(randomBoardRep, myWriter);
 
 			for (int k = 0; k < randomBoardRep.getBoard().length; k++) {
 				for (int j = 0; j < randomBoardRep.getBoard().length; j++) {
-					// System.out.println(" attempting to add stone to image");
 					if (randomBoardRep.getBoard()[k][j] != 0) {
-						// System.out.println("adding stone to image");
 						BufferedImage currentStoneImage = (randomBoardRep.getBoard()[k][j] == 1) ? blackStoneImage
 								: whiteStoneImage;
-						// BufferedImage currentStoneImage = blackStoneImage;
 						g.drawImage(currentStoneImage,
-								boardData.getStartCoordinates().getX() + ((boardData.getDistanceUnitX() * k)),
-								boardData.getStartCoordinates().getY() + (boardData.getDistanceUnitY() * j), null);
+								boardData.getStartCoordinates().getY() + ((boardData.getDistanceUnitY() * k)),
+								boardData.getStartCoordinates().getX() + (boardData.getDistanceUnitX() * j), null);
 
 					}
 
 				}
 
 			}
-			Image newResizedImage = combined.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+			Image newResizedImage = combined.getScaledInstance(trainingImageDimention, trainingImageDimention,
+					Image.SCALE_SMOOTH);
 			BufferedImage result = ImageProcessingUtils.convertToBufferedImage(newResizedImage);
 			g.dispose();
 
 			ImageIO.write(combined, "PNG", new File(savePath, "example" + i + ".png"));
 			ImageIO.write(result, "PNG", new File(savePath, "example" + i + "Sized.png"));
+
 		}
+		myWriter.close();
 	}
 
 	public BoardRepresentation generateRandomBoardRepresentation() {
@@ -105,6 +114,50 @@ public class GoBoardExampleGenerator {
 		}
 
 		return boardRep;
+	}
+
+	public BoardRepresentation generateWeightedRandomBoardRepresentation() {
+
+		BoardRepresentation boardRep = new BoardRepresentation();
+
+		Range noOfStonesRange = rangeCollection.next();
+		int numberOfStones = ThreadLocalRandom.current().nextInt(noOfStonesRange.getMinValue(),
+				noOfStonesRange.getMaxValue() + 1);
+		int colorIndicator = 2;
+
+		while (numberOfStones > 0) {
+
+			int x = (int) (Math.random() * boardRep.getBoard()[0].length);
+			int y = (int) (Math.random() * boardRep.getBoard().length);
+			if (boardRep.getBoard()[y][x] == 0) {
+				boardRep.getBoard()[y][x] = (colorIndicator % 2) + 1;
+				colorIndicator++;
+				numberOfStones--;
+			}
+		}
+
+		return boardRep;
+	}
+
+	public void saveExampleCoordinates(BoardRepresentation boardRep, FileWriter myWriter) throws IOException {
+		for (int i = 0; i < boardRep.getBoard().length; i++) {
+			for (int j = 0; j < boardRep.getBoard().length; j++) {
+				myWriter.write("" + boardRep.getBoard()[i][j]);
+
+			}
+		}
+		myWriter.write(System.getProperty("line.separator"));
+	}
+
+	private RandomCollection<Range> createWeightedRanges() {
+		Range lowRange = new Range(1, 20);
+		Range midRange = new Range(21, 130);
+		Range highRange = new Range(131, 230);
+
+		RandomCollection<Range> rangeCollection = new RandomCollection<>();
+		rangeCollection.add(10, lowRange).add(45, midRange).add(45, highRange);
+
+		return rangeCollection;
 	}
 
 }

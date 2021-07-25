@@ -1,4 +1,4 @@
-package mainExampleGen;
+package definitions;
 
 public class Coordinates {
 
